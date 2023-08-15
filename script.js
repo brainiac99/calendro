@@ -111,7 +111,7 @@ class Events {
     this.eventsListEl = events.querySelector(".events-list");
     this.btnCreate = document.querySelector(".btn-create-event");
     this.eventsArr = JSON.parse(localStorage.getItem("userEvents")) || [];
-    this.id = 0;
+    this.id = this.eventsArr[this.eventsArr.length - 1]?.id + 1 || 0;
   }
   //* Saving events
   saveEvent() {
@@ -134,8 +134,6 @@ class Events {
     });
     this.id += 1;
 
-    console.log(this.eventsArr);
-
     return this;
   }
   //* Rendering events
@@ -149,9 +147,11 @@ class Events {
       const hours = event.time.split(":")[0];
       const minutes = event.time.split(":")[1];
       let time = "12";
-      if (parseInt(hours) <= 12) time = `${hours}:${minutes || "00"} AM`;
-      else if (parseInt(hours) === 0) time = `12:${minutes || "00"} AM`;
-      else time = `${hours - 12}:${minutes || "00"} PM`;
+      if (parseInt(hours) === 0) time = `12:${minutes || "00"} AM`;
+      else if (parseInt(hours) < 12) time = `${hours}:${minutes || "00"} AM`;
+      else if (parseInt(hours) === 12) time = `12:${minutes || "00"} PM`;
+      else if (parseInt(hours) > 12)
+        time = `${hours - 12}:${minutes || "00"} PM`;
 
       html += `<li class="event" id="${event.id}">
       <div class="event-icon">
@@ -189,7 +189,6 @@ class Events {
     const removedEvent = this.eventsArr.findIndex((el) => el.id === id);
     this.eventsArr.splice(removedEvent, 1);
     this.renderEvent();
-    cal.renderDates();
   }
 
   //* Editing events
@@ -201,15 +200,16 @@ class Events {
     function updateEvent() {
       editedEvent.name = modalEdit.querySelector("#new-event-name").value;
       editedEvent.time = modalEdit.querySelector("#new-event-time").value;
-      editedEvent.icon = modalEdit.querySelector(".selected").outerHTML;
+      editedEvent.icon =
+        modalEdit.querySelector(".selected")?.outerHTML || editedEvent.icon;
       newEvent.renderEvent();
-      cal.renderDates();
       modalEdit.classList.add("hidden");
       overlay.classList.add("hidden");
     }
     btnUpdate.addEventListener("mousedown", updateEvent);
     btnUpdate.addEventListener("mouseup", () => {
       btnUpdate.removeEventListener("mousedown", updateEvent);
+      modalEdit.querySelector(".selected")?.classList.remove("selected");
     });
   }
 }
@@ -217,7 +217,7 @@ class Events {
 const eventsContainer = document.querySelector(".events-tab");
 const newEvent = new Events(eventsContainer);
 const cal = new Calendar(calendar);
-cal.renderMonth().renderDates();
+cal.renderMonth();
 newEvent.renderEvent();
 
 //* Implementing scroll buttons for months
@@ -237,7 +237,7 @@ monthsList.addEventListener("click", (e) => {
   if (!clicked) return;
   const clickedIndex = [...monthsList.children].indexOf(clicked);
   cal.month = clickedIndex;
-  cal.renderMonth().renderDates();
+  cal.renderMonth();
   newEvent.renderEvent();
 });
 
@@ -294,6 +294,7 @@ newEvent.btnCreate.addEventListener("click", () => {
 
 //* Delete/Edit event
 newEvent.eventsListEl.addEventListener("click", (e) => {
+  if (!e.target.closest("button")) return;
   if (e.target.closest("button").classList.contains("btn-delete")) {
     const eventId = parseInt(e.target.closest(".event").id);
     newEvent.deleteEvent(eventId);
